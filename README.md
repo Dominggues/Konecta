@@ -1,4 +1,9 @@
+![Konecta Banner](https://github.com/user-attachments/assets/67c5fd6a-bfcb-4ea2-ac8f-ef3f300ca794)
 
-# Konecta ![KONECTA_LOGO](https://github.com/user-attachments/assets/466f1900-44c8-46de-8372-37fd0d3bef27)
+Repositório feito para documentar todo o desenvolvimento de um trabalho TCC da Faculdade Unimax!
 
-Esse repo está sendo feito para mostrar a parte do desenvolvimento de um TCC da minha faculdade.
+### Objetivo geral:
+
+> Desenvolver um software baseado em IA capaz de traduzir sinais de Libras para texto/legenda em tempo real.
+> Dando total acessibilidade para portadores da deficiência auditiva sem custo algum.
+
