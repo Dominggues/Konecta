@@ -2,8 +2,12 @@
 
 Repositório feito para documentar todo o desenvolvimento de um trabalho TCC da Faculdade Unimax!
 
-### Objetivo geral:
+## Objetivo geral:
 
-> Desenvolver um software baseado em IA capaz de traduzir sinais de Libras para texto/legenda em tempo real.
-> Dando total acessibilidade para portadores da deficiência auditiva sem custo algum.
+* Desenvolver um software baseado em IA capaz de traduzir sinais de Libras para texto/legenda em tempo real.
+* Dando total acessibilidade para portadores da deficiência auditiva sem custo algum.
 
+## Contribuidores
+* Guilherme Domingues - guilherme18domingues@gmail.com
+* Vinicius Rosa - vinisantos045@hotmail.com
+* Matheus Isídio - 
