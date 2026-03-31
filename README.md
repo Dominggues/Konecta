@@ -10,4 +10,4 @@ Repositório feito para documentar todo o desenvolvimento de um trabalho TCC da 
 ## Contribuidores
 * Guilherme Domingues - guilherme18domingues@gmail.com
 * Vinicius Rosa - vinisantos045@hotmail.com
-* Matheus Isídio - 
+* Matheus Isídio - matheusisidioalvesdasilva@gmail.com
