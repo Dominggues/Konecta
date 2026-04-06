@@ -11,3 +11,4 @@ Repositório feito para documentar todo o desenvolvimento de um trabalho TCC da 
 * Guilherme Domingues - guilherme18domingues@gmail.com
 * Vinicius Rosa - vinisantos045@hotmail.com
 * Matheus Isídio - matheusisidioalvesdasilva@gmail.com
+* Orientador de TCC - Luyz Chiavini - luyzchiavini@gmail.com
