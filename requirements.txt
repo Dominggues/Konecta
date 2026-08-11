@@ -2,6 +2,12 @@ soundcard>=0.4.5
 soundfile>=0.13.1
 numpy>=2.0
 faster-whisper>=1.0.0
+requests>=2.31.0
+
+# servico central (servidor.py) e legenda flutuante (legenda_flutuante.py)
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+websocket-client>=1.7.0
 webrtcvad-wheels>=2.0.10  # mesmo pacote 'webrtcvad', com wheel pre-compilada p/ Windows
                           # (o webrtcvad original exige MS C++ Build Tools p/ compilar)
 

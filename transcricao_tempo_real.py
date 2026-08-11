@@ -42,6 +42,7 @@ if os.name == "nt":
         os.environ["PATH"] = _dll_dir + os.pathsep + os.environ.get("PATH", "")
 
 import numpy as np
+import requests
 import soundcard as sc
 import webrtcvad
 from faster_whisper import WhisperModel
@@ -78,11 +79,32 @@ DEVICE = "cuda"               # "cuda" (GPU NVIDIA, muito mais rapido) ou "cpu" 
 COMPUTE_TYPE = "float16"      # float16 = ideal p/ GPU; troque p/ "int8" se DEVICE="cpu"
 IDIOMA = "pt"
 
+# Servico central (servidor.py) - opcional. Se nao estiver rodando, a
+# transcricao continua funcionando normal, so' no terminal (nao trava nem
+# quebra o programa por causa disso).
+URL_SERVIDOR = "http://127.0.0.1:8765/publicar"
+PUBLICAR_NO_SERVIDOR = True
+
 # ---------------------------------------------------------------------------
 # Fila entre as threads
 # ---------------------------------------------------------------------------
 fila_frames = queue.Queue()
 parar = threading.Event()
+
+
+def _publicar(tipo, texto, latencia_s=None):
+    """Manda o texto pro servico central (legenda flutuante, futuramente o
+    avatar do Vinicius). Falha em silencio se o servidor nao estiver de pe' -
+    isso e' so' um "bonus", o script tem que continuar funcionando sozinho."""
+    if not PUBLICAR_NO_SERVIDOR or not texto:
+        return
+    corpo = {"origem": "audio", "tipo": tipo, "texto": texto}
+    if latencia_s is not None:
+        corpo["latencia_s"] = latencia_s
+    try:
+        requests.post(URL_SERVIDOR, json=corpo, timeout=0.5)
+    except requests.exceptions.RequestException:
+        pass  # servidor.py nao esta' rodando - segue so' com o terminal
 
 
 def capturar_audio():
@@ -129,29 +151,45 @@ def _transcrever(modelo, audio_np):
 
 
 class LegendaAoVivo:
-    """Cuida de imprimir a legenda de um segmento em andamento: sobrescreve
-    a mesma linha do terminal enquanto o texto ainda e' provisorio e fecha
-    com uma quebra de linha quando o trecho e' confirmado como final."""
+    """Imprime a legenda de um segmento em andamento SO' com as palavras ja
+    confirmadas (estaveis entre duas passadas seguidas do local agreement) -
+    cada palavra e' impressa uma unica vez, na ordem, sem reescrever a frase
+    inteira. Isso evita o bug de duplicacao visual que acontece tentando
+    sobrescrever uma linha com "\\r" quando o texto cresce e quebra em
+    varias linhas do terminal (o "\\r" so' limpa a ultima linha da quebra)."""
 
     def __init__(self):
-        self.confirmadas = 0     # quantas palavras ja foram "travadas"
-        self.palavras = []       # palavras confirmadas ate agora, deste segmento
+        self.confirmadas = 0     # quantas palavras ja foram impressas
+        self.iniciada = False
+        self.texto_confirmado = ""  # frase completa ate agora (p/ publicar no servidor)
 
     def atualizar_parcial(self, hipotese_palavras, hipotese_anterior):
         comum = _prefixo_comum(hipotese_anterior, hipotese_palavras)
-        if comum > self.confirmadas:
-            self.confirmadas = comum
-            self.palavras = hipotese_palavras[:comum]
-        # mostra confirmado + o "rascunho" ainda instavel do fim, pra dar
-        # feedback visual mesmo antes de travar as palavras
-        rascunho = " ".join(hipotese_palavras)
-        sys.stdout.write(f"\r[legenda...] {rascunho}" + " " * 15)
-        sys.stdout.flush()
+        if comum <= self.confirmadas:
+            return  # nada novo se estabilizou desde a ultima passada
+        novas_palavras = hipotese_palavras[self.confirmadas:comum]
+        self._imprimir(novas_palavras)
+        self.confirmadas = comum
+        self.texto_confirmado = " ".join(hipotese_palavras[:comum])
+        _publicar("parcial", self.texto_confirmado)
 
     def finalizar(self, texto_final, latencia):
-        sys.stdout.write(
-            f"\r[legenda]    {texto_final}   (final, {latencia:.2f}s)" + " " * 15 + "\n"
-        )
+        palavras_finais = texto_final.split()
+        restantes = palavras_finais[self.confirmadas:]
+        self._imprimir(restantes)
+        if not self.iniciada:
+            sys.stdout.write("[legenda] ")
+        sys.stdout.write(f"  (final, {latencia:.2f}s)\n")
+        sys.stdout.flush()
+        _publicar("final", texto_final, latencia)
+
+    def _imprimir(self, palavras):
+        if not palavras:
+            return
+        if not self.iniciada:
+            sys.stdout.write("[legenda] ")
+            self.iniciada = True
+        sys.stdout.write(" ".join(palavras) + " ")
         sys.stdout.flush()
 
 
