@@ -4,3 +4,12 @@ numpy>=2.0
 faster-whisper>=1.0.0
 webrtcvad-wheels>=2.0.10  # mesmo pacote 'webrtcvad', com wheel pre-compilada p/ Windows
                           # (o webrtcvad original exige MS C++ Build Tools p/ compilar)
+
+# --- Opcional: so' instale se for usar GPU NVIDIA (DEVICE = "cuda") ---
+# Sem GPU, nao instale essas linhas - o script cai pra CPU sozinho.
+# Depois de instalar, rode uma vez: python configurar_gpu_windows.py
+# nvidia-cublas-cu12
+# nvidia-cudnn-cu12
+# nvidia-cuda-runtime-cu12
+# nvidia-cuda-nvrtc-cu12
+# nvidia-nvjitlink-cu12
