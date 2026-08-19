@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<title>Konecta - demo VLibras</title>
+<style>
+  body {
+    margin: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #101820;
+    color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+  }
+  h1 { font-size: 20px; color: #7ec8ff; }
+  #status { color: #888; font-size: 13px; margin-bottom: 20px; }
+  #legenda-container {
+    width: 100%;
+    max-width: 700px;
+    background: #1a2430;
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 80px;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  #legenda-texto { margin: 0; }
+  .controles {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+  }
+  button {
+    background: #2a5c8a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:hover { background: #336fa8; }
+  .aviso {
+    max-width: 700px;
+    font-size: 12px;
+    color: #999;
+    margin-top: 24px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1>Konecta — demo: legenda ao vivo + avatar VLibras</h1>
+<div id="status">conectando ao servidor local...</div>
+
+<div id="legenda-container">
+  <p id="legenda-texto">Aguardando fala (rode transcricao_tempo_real.py)...</p>
+</div>
+
+<div class="controles">
+  <button id="btn-traduzir">Traduzir texto atual p/ Libras (abre o avatar)</button>
+  <button id="btn-auto">Auto-traduzir a cada frase nova: OFF</button>
+</div>
+
+<p class="aviso">
+  Essa pagina carrega o widget OFICIAL do VLibras (vlibras.gov.br) - precisa de
+  internet. E' uma integracao nao-documentada por parte deles (o widget foi
+  pensado pra traduzir o texto visivel da pagina quando alguem clica no botao
+  de acessibilidade, nao pra receber texto dinamico via API) - entao trate
+  isso como prova de conceito, nao como algo definitivo. Se o botao "Auto"
+  nao fizer o avatar reagir do jeito esperado, use o botao azul do VLibras no
+  canto da tela manualmente depois que a legenda atualizar.
+</p>
+
+<!-- Widget oficial do VLibras -->
+<div vw class="enabled">
+  <div vw-access-button class="active"></div>
+  <div vw-plugin-wrapper>
+    <div class="vw-plugin-top-wrapper"></div>
+  </div>
+</div>
+<script src="https://vlibras.gov.br/app/vlibras-plugin.js"></script>
+<script>
+  new window.VLibras.Widget('https://vlibras.gov.br/app');
+</script>
+
+<script>
+  const URL_WS = "ws://127.0.0.1:8765/ws";
+  const elStatus = document.getElementById("status");
+  const elTexto = document.getElementById("legenda-texto");
+  const btnTraduzir = document.getElementById("btn-traduzir");
+  const btnAuto = document.getElementById("btn-auto");
+
+  let autoTraduzir = false;
+  let ultimaFraseFinal = "";
+
+  btnAuto.addEventListener("click", () => {
+    autoTraduzir = !autoTraduzir;
+    btnAuto.textContent = "Auto-traduzir a cada frase nova: " + (autoTraduzir ? "ON" : "OFF");
+  });
+
+  // Descoberto via inspecao do DOM (nao documentado pelo VLibras, pode
+  // quebrar se eles mudarem o HTML interno do widget num update futuro):
+  //   - painel de traducao so' fica no DOM depois de abrir o widget
+  //   - caixa de texto do tradutor: <textarea class="vp-user-textarea">
+  //   - botao "Traduzir" dentro do painel: <button class="vp-play-gloss-button">
+  //   - o wrapper do painel ganha a classe "active" quando esta' aberto
+  function painelAberto() {
+    const wrapper = document.querySelector("[vw-plugin-wrapper]");
+    return !!wrapper && wrapper.classList.contains("active");
+  }
+
+  function preencherEtraduzir(texto) {
+    const textarea = document.querySelector(".vp-user-textarea");
+    if (!textarea) {
+      console.warn("Caixa de texto do VLibras nao encontrada (painel ainda carregando?).");
+      return;
+    }
+    // setar .value direto nao dispara o listener interno do widget - precisa
+    // usar o setter nativo + disparar o evento 'input' manualmente
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+    setter.call(textarea, texto);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const botaoTraduzir = Array.from(document.querySelectorAll("button.vp-play-gloss-button"))
+      .find((b) => b.textContent.trim().toLowerCase() === "traduzir");
+    if (botaoTraduzir) {
+      botaoTraduzir.click();
+    } else {
+      console.warn("Botao 'Traduzir' do VLibras nao encontrado.");
+    }
+  }
+
+  function acionarVLibras() {
+    const texto = elTexto.textContent.trim();
+    if (!texto) return;
+
+    if (painelAberto()) {
+      preencherEtraduzir(texto);
+    } else {
+      const botaoAcesso = document.querySelector("[vw-access-button]");
+      if (botaoAcesso) botaoAcesso.click();
+      // o painel demora um instante pra montar no DOM depois do clique
+      setTimeout(() => preencherEtraduzir(texto), 900);
+    }
+  }
+
+  btnTraduzir.addEventListener("click", acionarVLibras);
+
+  function conectar() {
+    const ws = new WebSocket(URL_WS);
+
+    ws.onopen = () => {
+      elStatus.textContent = "Conectado ao servidor local. Aguardando fala...";
+    };
+
+    ws.onmessage = (evento) => {
+      const msg = JSON.parse(evento.data);
+      if (!msg.texto) return;
+
+      elTexto.textContent = msg.texto;
+
+      if (msg.tipo === "final") {
+        ultimaFraseFinal = msg.texto;
+        if (autoTraduzir) {
+          acionarVLibras();
+        }
+      }
+    };
+
+    ws.onerror = () => {
+      elStatus.textContent = "Servidor local indisponivel (rode servidor.py).";
+    };
+
+    ws.onclose = () => {
+      elStatus.textContent = "Desconectado. Tentando reconectar...";
+      setTimeout(conectar, 3000);
+    };
+  }
+
+  conectar();
+</script>
+
+</body>
+</html>
